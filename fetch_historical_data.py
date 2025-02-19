@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+from alpaca.data.enums import Adjustment
 from alpaca.data.historical.stock import StockHistoricalDataClient
 from alpaca.data.requests import StockBarsRequest
 
@@ -45,6 +46,7 @@ req = StockBarsRequest(
     symbol_or_symbols=stock_tickers + etfs,  # specify symbol or symbols
     timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),  # specify timeframe
     start=now - timedelta(days=5*365),  # specify start datetime, last 5 years
+    adjustment=Adjustment.ALL,  # specify adjustment
     # end_date=None,  # specify end datetime, default=now
     # limit=2,  # specify limit
 )
