@@ -31,3 +31,9 @@ ALPACA_API_KEY=your_api_key
 ALPACA_SECRET_KEY=your_secret_key
 ```
 
+### 5️⃣ Verify Setup by Checking Account Balance
+Run the following command to confirm your API keys are working correctly:
+
+```bash
+python check_balance.py
+```
