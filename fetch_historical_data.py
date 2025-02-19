@@ -40,7 +40,7 @@ etfs = [
 
 now = datetime.now(ZoneInfo("America/Chicago"))
 
-# NOTE: Modify the timeframe and start datetime as needed
+###### NOTE: Modify the timeframe and start datetime as needed ######
 req = StockBarsRequest(
     symbol_or_symbols=stock_tickers + etfs,  # specify symbol or symbols
     timeframe=TimeFrame(amount=1, unit=TimeFrameUnit.Day),  # specify timeframe
@@ -52,4 +52,4 @@ req = StockBarsRequest(
 df = stock_historical_data_client.get_stock_bars(req).df
 # Rename CSV file to match requested data
 df.to_csv("historical_stock_data_daily_5_yrs.csv", index=True)
-print("Data successfully saved to historical_stock_data.csv")
+print("Data successfully saved to CSV")
