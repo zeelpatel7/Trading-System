@@ -88,7 +88,7 @@ for i in range(0, len(symbols), BATCH_SIZE):
 # Combine all data and save to CSV
 if all_data:
     final_df = pd.concat(all_data)
-    final_df.to_csv("historical_stock_data_15min_1year.csv", index=True)
+    final_df.to_csv(os.path.join("data", "historical_stock_data_15min_1year.csv"), index=True)
     print(f"✅ Data successfully saved to CSV. Total rows: {len(final_df)}")
 else:
     print("❌ No data fetched.")

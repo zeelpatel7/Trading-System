@@ -53,5 +53,5 @@ req = StockBarsRequest(
 
 df = stock_historical_data_client.get_stock_bars(req).df
 # Rename CSV file to match requested data
-df.to_csv("historical_stock_data_daily_5_yrs.csv", index=True)
+df.to_csv(os.path.join("data", "historical_stock_data_daily_5_yrs.csv"), index=True)
 print("Data successfully saved to CSV")

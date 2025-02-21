@@ -11,7 +11,7 @@ PORT = 9999
 starting_cash = 100000  # Start with $100K
 cash_balance = starting_cash
 portfolio = {}  # Example: { "AAPL": {"quantity": 10, "avg_price": 150.00, "last_close": 150.00} }
-log_file = "trading_session_report.csv"
+log_file = "data/trading_session_report.csv"
 
 def start_client():
     """ Connects to the server and receives the finance price stream. """
