@@ -37,9 +37,8 @@ Run the following command to confirm your API keys are working correctly:
 python scripts/check_balance.py
 ```
 
-## Running the TCP Client
-
-The **TCP client** connects to the server to receive real-time market data and execute trades based on a predefined strategy. The market data is **mocked** to be real-time by streaming historical prices from a CSV file at a controlled interval.
+## Running the TCP Client (No API Keys Required)
+The **TCP client** connects to the server to receive real-time market data and execute trades based on a predefined strategy. Unlike the Alpaca-based scripts, the TCP client does not require API keys because it uses historical market data streamed from a CSV file.
 
 ### 1️⃣ Start the Server (in a dedicated terminal)
 Before running the client, ensure the **TCP server** is running and streaming data. The server reads from the historical CSV file and sends price updates to connected clients in a simulated real-time manner.
