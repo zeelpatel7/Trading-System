@@ -9,107 +9,76 @@ import sys
 import time
 import datetime
 
-
-
 class ThreadedServer(object):
-    def __init__(self, host,opt):
-        self.environment = {}
-        self.environment['NoMode'] = {'points' : 0}
-        self.environment['Occupancy'] = {'occupancy' : 0, 'points' : 0}
+    def __init__(self, host, opt):
         self.host = host
         self.port = opt.port
         self.opt = opt
-        self.state = self.environment[opt.mode if opt.mode else 'NoMode']
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
         self.lock = threading.Lock()
 
     def listen(self):
+        """ Listens for incoming client connections """
         self.sock.listen(5)
+        print(f"Server listening on {self.host}:{self.port}...")
+        
         while True:
             client, address = self.sock.accept()
             client.settimeout(500)
-            threading.Thread(target = self.listenToClient,args = (client,address)).start()
-            threading.Thread(target = self.sendStreamToClient,args =
-                             (client,self.sendCSVfile())).start()
-
-    def handle_client_answer(self,obj):
-        if self.opt.mode is not None and self.opt.mode=='Occupancy':
+            print(f"New client connected: {address}")
             
-            if 'Occupancy' not in obj:
-                return
-            self.lock.acquire()
-            if self.state['occupancy'] == int(obj['Occupancy']):
-                self.state['points']+=1 
-            self.lock.release()
-        return 
+            # Start a thread to send market data to the client
+            threading.Thread(target=self.sendStreamToClient, args=(client, self.sendCSVfile())).start()
 
-    def listenToClient(self, client, address):
-        size = 1024
-        while True:
+    def sendStreamToClient(self, client, buffer):
+        """ Sends grouped market data (all stocks for a given timestamp) to the client """
+        for timestamp, data in buffer.items():
+            print(f"Sending data for {timestamp}")
+
             try:
-                data = client.recv(size).decode()
-                if data:
-                    # Set the response to echo back the recieved data
-                    a=json.loads(data.rstrip('\n\r '))
-                    self.handle_client_answer(a)
-    
-                    #client.send(response)
-                else:
-                    print('Client disconnected')
-                    return False
-            except:
-                print('Client closed the connection')
-                print ("Unexpected error:", sys.exc_info()[0])
+                message = json.dumps({"timestamp": timestamp, "data": data}) + '\n'
+                client.sendall(message.encode('utf-8'))
+                
+                # Sleep to simulate real-time streaming
+                time.sleep(self.opt.interval)
+            
+            except Exception as e:
+                print(f"Client disconnected. Error: {e}")
                 client.close()
                 return False
-
-    def handleCustomData(self,buffer):
-        if self.opt.mode is not None and self.opt.mode=='Occupancy':
-            self.lock.acquire()
-            buffer['date']=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            self.state['occupancy']= int(buffer['Occupancy'])
-            buffer['Occupancy']=-1
-            self.lock.release()
-
-    def sendStreamToClient(self,client,buffer):
-        for i in buffer:
-            print(i)
-            self.handleCustomData(i)
-            try:
-                client.send((self.convertStringToJSON(i)+'\n').encode('utf-8'))
-                time.sleep(self.opt.interval)
-            except:
-                print('End of stream')
-                return False
-        client.send((self.convertStringToJSON(self.state)+'\n').encode('utf-8'))   
+        
+        print("End of data stream")
+        client.close()
         return False
 
-    def convertStringToJSON(self,st):
-        return json.dumps(st)
-            
     def sendCSVfile(self):
-        out=[]
+        """ Reads CSV files, groups data by timestamp, and returns a sorted dictionary """
+        data_by_timestamp = {}
+
         for f in self.opt.files:
-            print ('reading file %s...' % f)
-            csvfile = open(f, 'r')
-            reader = csv.DictReader(csvfile, fieldnames=["symbol", "timestamp", "open", "high", "low", "close", "volume", "trade_count", "vwap"])
-            next(reader)  # Skip the header
-            for row in reader:
-                out+=[row]
-        return out
+            print(f'Reading file {f}...')
+            with open(f, 'r') as csvfile:
+                reader = csv.DictReader(csvfile)
+                next(reader)  # Skip the header
+                
+                for row in reader:
+                    timestamp = row["timestamp"]
+                    
+                    # Group all stocks under the same timestamp
+                    if timestamp not in data_by_timestamp:
+                        data_by_timestamp[timestamp] = []
+                    
+                    data_by_timestamp[timestamp].append(row)
+
+        return data_by_timestamp
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(usage='usage: tcp_server -p port [-f -m]')
-    parser.add_argument('-f', '--files', nargs='+')
-    parser.add_argument("-m", "--mode",action="store", dest="mode")
-    parser.add_argument("-p", "--port",action="store", dest="port",type=int)
-    parser.add_argument("-t", "--time-interval",action="store",
-                        dest="interval",type=int,default=1)
+    parser.add_argument('-f', '--files', nargs='+', required=True, help="List of CSV files to read from")
+    parser.add_argument("-p", "--port", action="store", dest="port", type=int, required=True, help="Port to listen on")
+    parser.add_argument("-t", "--time-interval", action="store", dest="interval", type=int, default=1, help="Time interval between updates (seconds)")
     
-    opt=parser.parse_args()
-    if not opt.port:
-        parser.error('Port not given')
-    ThreadedServer('127.0.0.1',opt).listen()
-
+    opt = parser.parse_args()
+    ThreadedServer('127.0.0.1', opt).listen()
