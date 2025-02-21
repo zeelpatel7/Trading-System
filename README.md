@@ -34,7 +34,7 @@ ALPACA_SECRET_KEY=your_secret_key
 Run the following command to confirm your API keys are working correctly:
 
 ```bash
-python check_balance.py
+python scripts/check_balance.py
 ```
 
 ## Running the TCP Client
@@ -45,14 +45,14 @@ The **TCP client** connects to the server to receive real-time market data and e
 Before running the client, ensure the **TCP server** is running and streaming data. The server reads from the historical CSV file and sends price updates to connected clients in a simulated real-time manner.
 
 ```bash
-python tcp_server.py -p 9999 -f data/historical_stock_data_daily_5_yrs.csv -t 1
+python scripts/tcp_server.py -p 9999 -f data/historical_stock_data_daily_5_yrs.csv -t 1
 ```
 
 ### 2️⃣ Run the TCP Client
 Once the server is running, start the client to receive market data and execute trades:
 
 ```bash
-python tcp_client.py
+python scripts/tcp_client.py
 ```
 You should see market updates, trade signals, and portfolio status being printed in real time.
 
