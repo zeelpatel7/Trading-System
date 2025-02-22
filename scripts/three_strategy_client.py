@@ -19,90 +19,101 @@ PORT = 9999
 
 class TradingStrategy:
     """
-    A triple-factor strategy using Bollinger Bands, MACD, and Volume Spike.
-    Votes on BUY/SELL with majority rule.
+    A triple-factor day trading strategy using Bollinger Bands, MACD, and Volume Spike.
+    Uses a voting system for trade signals.
     """
+    
     def __init__(self):
         # Store up to 100 recent data points per symbol
         self.data_buffers = defaultdict(lambda: deque(maxlen=100))
-        
+
     def update_buffers(self, symbol, data_point):
         """Append the latest data point to the symbol's buffer."""
         self.data_buffers[symbol].append(data_point)
-        
+
     def calculate_indicators(self, symbol):
-        """Calculate Bollinger, MACD, RSI, and volume MA for the last 20+ bars."""
+        """Calculate Bollinger Bands, MACD, RSI, and volume statistics."""
         buffer = list(self.data_buffers[symbol])
-        if len(buffer) < 20:
-            return None  # Need at least 20 for Bollinger calculations
+        if len(buffer) < 20:  
+            return None  # Need at least 20 data points
         
         df = pd.DataFrame(buffer)
         df['close'] = df['close'].astype(float)
         df['volume'] = df['volume'].astype(float)
         
-        # Bollinger Bands (20 period, 2 std dev)
+        # Bollinger Bands (20-period, 2 std dev)
         bb = BollingerBands(df['close'], window=20, window_dev=2)
         
-        # MACD
+        # MACD (12,26,9)
         macd = MACD(df['close'], window_slow=26, window_fast=12, window_sign=9)
         
-        # RSI (not directly used in final signals here, but we could add it)
+        # RSI (14-period)
         rsi = RSIIndicator(df['close'], window=14)
         
-        # 20-bar volume moving average
+        # 20-bar volume moving average & standard deviation
         volume_ma = df['volume'].rolling(20).mean().iloc[-1]
-        
+        volume_std = df['volume'].rolling(20).std().iloc[-1]
+
         return {
             'bb_upper': bb.bollinger_hband().iloc[-1],
             'bb_lower': bb.bollinger_lband().iloc[-1],
+            'bb_middle': bb.bollinger_mavg().iloc[-1],
             'macd_line': macd.macd().iloc[-1],
             'macd_signal': macd.macd_signal().iloc[-1],
             'rsi': rsi.rsi().iloc[-1],
-            'volume_ma': volume_ma
+            'volume_ma': volume_ma,
+            'volume_std': volume_std
         }
 
     def generate_signal(self, symbol, current_data):
         """
-        Returns 'BUY', 'SELL', or None based on the 3-factor voting:
-          1. Bollinger band position
-          2. MACD line vs. signal
-          3. Volume spike vs. average
+        Returns 'BUY', 'SELL', or None based on a 3-factor voting system:
+        1. Bollinger Bands breakout confirmation
+        2. MACD crossover with threshold
+        3. Volume spike above statistical significance
         """
         indicators = self.calculate_indicators(symbol)
         if not indicators:
-            return None
-        
+            return None  # Not enough data
+
         signals = []
         close_price = float(current_data['close'])
         volume = float(current_data['volume'])
         open_price = float(current_data['open'])
-        
+
+        # Ensure previous_close is properly extracted and converted to float
+        try:
+            previous_close = float(list(self.data_buffers[symbol])[-2]['close']) if len(self.data_buffers[symbol]) > 1 else close_price
+        except (KeyError, ValueError, TypeError):
+            previous_close = close_price  # Fallback to current close if there's an issue
+
         # --- Bollinger Bands Strategy ---
-        if close_price > indicators['bb_upper'] * 0.99:
+        if close_price > indicators['bb_upper'] and previous_close <= float(indicators['bb_upper']):
             signals.append('SELL')
-        elif close_price < indicators['bb_lower'] * 1.01:
+        elif close_price < indicators['bb_lower'] and previous_close >= float(indicators['bb_lower']):
             signals.append('BUY')
-            
-        # --- MACD Crossover ---
-        if indicators['macd_line'] > indicators['macd_signal']:
+
+        # --- MACD Crossover with Threshold ---
+        macd_diff = float(indicators['macd_line']) - float(indicators['macd_signal'])
+        if macd_diff > 0.1:  # Require significant divergence
             signals.append('BUY')
-        else:
+        elif macd_diff < -0.1:
             signals.append('SELL')
-            
-        # --- Volume Spike ---
-        if volume > indicators['volume_ma'] * 1.5:
-            # If price is above the open, treat volume spike as bullish, else bearish
+
+        # --- Volume Spike Confirmation ---
+        if volume > float(indicators['volume_ma']) + (2 * float(indicators['volume_std'])):
             signals.append('BUY' if close_price > open_price else 'SELL')
-        
-        # Voting system: 2 or more 'BUY' => final BUY, 2 or more 'SELL' => final SELL
+
+        # --- Voting System: 2 or more 'BUY' → BUY, 2 or more 'SELL' → SELL ---
         buy_count = signals.count('BUY')
         sell_count = signals.count('SELL')
-        
+
         if buy_count >= 2:
             return 'BUY'
         if sell_count >= 2:
             return 'SELL'
         return None
+
 
 
 class PortfolioManager:
