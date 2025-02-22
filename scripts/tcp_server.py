@@ -78,7 +78,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(usage='usage: tcp_server -p port [-f -m]')
     parser.add_argument('-f', '--files', nargs='+', required=True, help="List of CSV files to read from")
     parser.add_argument("-p", "--port", action="store", dest="port", type=int, required=True, help="Port to listen on")
-    parser.add_argument("-t", "--time-interval", action="store", dest="interval", type=int, default=1, help="Time interval between updates (seconds)")
+    parser.add_argument("-t", "--time-interval", action="store", dest="interval", type=float, default=1.0, help="Time interval between updates (seconds)")
     
     opt = parser.parse_args()
     ThreadedServer('127.0.0.1', opt).listen()
