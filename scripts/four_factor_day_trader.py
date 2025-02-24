@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# scripts/three_strategy_client.py
 
 import socket
 import json
