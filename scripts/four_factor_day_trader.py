@@ -234,7 +234,7 @@ class PortfolioManager:
         Calculates the total portfolio value (cash plus market value of open positions)
         and the total unrealized PNL.
         """
-        total_value = self.cash
+        total_value = self.cash + self.realized_pnl
         unrealized = 0.0
         prices = {d['symbol']: float(d['close']) for d in market_data}
         for sym, info in self.positions.items():
