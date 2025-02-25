@@ -44,7 +44,7 @@ The **TCP client** connects to the server to receive real-time market data and e
 Before running the client, ensure the **TCP server** is running and streaming data. The server reads from the historical CSV file and sends price updates to connected clients in a simulated real-time manner.
 
 ```bash
-python scripts/tcp_server.py -p 9999 -f data/historical_stock_data_15min_1year.csv -t 1
+python scripts/tcp_server.py -p 9999 -f data/historical_stock_data_5min_6months.csv -t 0.1
 ```
 
 ### 2️⃣ Run the TCP Client
@@ -58,7 +58,7 @@ You should see market updates, trade signals, and portfolio status being printed
 ### 3️⃣ How it Works
 - The server mimics real-time trading by sending historical stock data from the CSV file at regular intervals.
 - The client processes the data and applies the chosen trading strategy.
-- All balances and profit/loss calculations are logged in the `data/` folder for review.
+- All trades and profit/loss calculations are logged in the `data/` folder for review.
 
 ### 4️⃣ Stopping the Client
 To stop the client, use `Ctrl + C` in the terminal.
