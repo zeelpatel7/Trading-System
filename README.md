@@ -44,14 +44,14 @@ The **TCP client** connects to the server to receive real-time market data and e
 Before running the client, ensure the **TCP server** is running and streaming data. The server reads from the historical CSV file and sends price updates to connected clients in a simulated real-time manner.
 
 ```bash
-python scripts/tcp_server.py -p 9999 -f data/historical_stock_data_5min_6months.csv -t 0.1
+python scripts/tcp/tcp_server.py -p 9999 -f data/historical_stock_data_5min_6months.csv -t 0.1
 ```
 
 ### 2️⃣ Run the TCP Client
 Once the server is running, start the client to receive market data and execute trades:
 
 ```bash
-python scripts/four_factor_day_trader.py
+python scripts/tcp/four_factor_day_trader.py
 ```
 You should see market updates, trade signals, and portfolio status being printed in real time.
 
