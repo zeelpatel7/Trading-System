@@ -51,14 +51,14 @@ python scripts/tcp_server.py -p 9999 -f data/historical_stock_data_15min_1year.c
 Once the server is running, start the client to receive market data and execute trades:
 
 ```bash
-python scripts/naive_client.py
+python scripts/four_factor_day_trader.py
 ```
 You should see market updates, trade signals, and portfolio status being printed in real time.
 
 ### 3️⃣ How it Works
 - The server mimics real-time trading by sending historical stock data from the CSV file at regular intervals.
-- The client processes the data and applies a simple trading strategy: Buy if the closing price is lower than the opening price, sell otherwise.
-- All balances and profit/loss calculations are logged in `data/trading_session_report.csv` for review.
+- The client processes the data and applies the chosen trading strategy.
+- All balances and profit/loss calculations are logged in the `data/` folder for review.
 
 ### 4️⃣ Stopping the Client
 To stop the client, use `Ctrl + C` in the terminal.

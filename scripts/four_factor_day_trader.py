@@ -29,11 +29,10 @@ class TradingStrategy:
 
     A trade signal is generated only if at least 3 out of 4 indicators agree.
     """
-    def __init__(self, risk_amount=1.0, min_datapoints = 20):
+    def __init__(self, risk_amount=1.0):
         # Store a rolling window of market data for each symbol
         self.data_buffers = defaultdict(lambda: deque(maxlen=300))
         self.risk_amount = risk_amount
-        self.min_datapoints = min_datapoints
         
 
     def update_buffer(self, symbol, data_point):
@@ -161,20 +160,25 @@ class PortfolioManager:
             print(f"Error logging trade event: {e}")
 
     def open_position(self, symbol, signal, current_price, timestamp, is_stock=True):
-        """
-        Opens a new position if one isn't already open.
-        The risk management rules determine stop loss and target.
-        """
         if symbol in self.positions:
             return  # Position already open
-        
+
         position_type = signal  # 'BUY' for long, 'SELL' for short
-        # Set profit target ratio: 1.5:1 for stocks, 1:1 for indices
         profit_ratio = 1.5 if is_stock else 1.0
+        quantity = 1  # Fixed quantity as per the strategy
+
         if position_type == 'BUY':
+            # Check if enough cash to buy
+            cost = current_price * quantity
+            if self.cash < cost:
+                print(f"Not enough cash to open BUY position for {symbol}")
+                return
+            self.cash -= cost
             stop_loss = current_price - self.risk_amount
             target = current_price + profit_ratio * self.risk_amount
-        else:  # SELL (short position)
+        else:  # SELL (short)
+            # Add proceeds from short sale
+            self.cash += current_price * quantity
             stop_loss = current_price + self.risk_amount
             target = current_price - profit_ratio * self.risk_amount
 
@@ -183,50 +187,46 @@ class PortfolioManager:
             'position_type': position_type,
             'stop_loss': stop_loss,
             'target': target,
-            'quantity': 1  # For simplicity, assuming 1 unit per trade
+            'quantity': quantity
         }
         print(f"Opened {position_type} position for {symbol} at {current_price:.2f} | SL: {stop_loss:.2f} | Target: {target:.2f}")
-        # Log the opening trade (PNL not applicable yet)
-        self.log_trade_event(timestamp, symbol, f'OPEN {position_type}', current_price, 1, 'N/A')
+        self.log_trade_event(timestamp, symbol, f'OPEN {position_type}', current_price, quantity, 'N/A')
 
     def update_positions(self, symbol, current_price, timestamp):
-        """
-        Checks open positions for the given symbol. If the current price hits the target or stop loss,
-        the position is closed and the realized PNL is logged.
-        """
         if symbol not in self.positions:
             return
 
         pos = self.positions[symbol]
         entry = pos['entry_price']
-        stop_loss = pos['stop_loss']
-        target = pos['target']
         action = pos['position_type']
-        
-        # Check exit conditions
+        quantity = pos['quantity']
+
+        # Determine exit condition
         exit_condition = False
         if action == 'BUY':
-            if current_price >= target or current_price <= stop_loss:
+            if current_price >= pos['target'] or current_price <= pos['stop_loss']:
                 exit_condition = True
-        else:  # SELL
-            if current_price <= target or current_price >= stop_loss:
+        else:
+            if current_price <= pos['target'] or current_price >= pos['stop_loss']:
                 exit_condition = True
-        
+
         if exit_condition:
-            # Calculate PNL
-            pnl = (current_price - entry) if action == 'BUY' else (entry - current_price)
+            # Calculate PNL and adjust cash
+            if action == 'BUY':
+                self.cash += current_price * quantity  # Sell the position
+                pnl = (current_price - entry) * quantity
+            else:
+                self.cash -= current_price * quantity  # Buy back the short
+                pnl = (entry - current_price) * quantity
+
             self.realized_pnl += pnl
-            
-            # Log closing action
-            print(f"Closing {symbol} {action} position at {current_price}")
+
+            print(f"Closing {symbol} {action} position at {current_price:.2f}")
             self.log_trade_event(
-                timestamp, symbol, 
-                f'CLOSE {action}', 
-                current_price, pos['quantity'], 
-                round(pnl, 2)  # Log realized PNL
+                timestamp, symbol, f'CLOSE {action}',
+                current_price, quantity, round(pnl, 2)
             )
-            
-            # Remove position
+
             del self.positions[symbol]
 
     def update_valuation(self, timestamp, market_data):
@@ -240,7 +240,10 @@ class PortfolioManager:
         for sym, info in self.positions.items():
             if sym in prices:
                 current_price = prices[sym]
-                total_value += current_price * info['quantity']
+                if info['position_type'] == 'BUY':
+                    total_value += (current_price * info['quantity'])
+                else:  # short
+                    total_value -= (current_price * info['quantity'])
                 entry = info['entry_price']
                 if info['position_type'] == 'BUY':
                     unrealized += (current_price - entry) * info['quantity']
