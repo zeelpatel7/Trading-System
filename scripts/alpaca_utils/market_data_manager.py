@@ -68,7 +68,3 @@ class MarketDataManager:
         except Exception as e:
             print(f"❌ Error fetching data: {e}")
             return None
-
-# manager = MarketDataManager()
-# historical_data = manager.fetch_historical_data()
-# print(historical_data.tail(5))
