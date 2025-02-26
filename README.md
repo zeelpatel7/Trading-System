@@ -1,13 +1,40 @@
 # Trading System
 
-This is an automated trading system that interacts with Alpaca's API for paper trading. The system retrieves market data and executes trades based on predefined strategies.
+This is an **automated trading system** that interacts with **[Alpaca](https://alpaca.markets/)'s API** for paper trading and a **TCP-based simulated trading** environment for testing strategies locally. The system retrieves market data, calculates indicators, generates trade signals and executes orders based on predefined strategies.
+
+## 📂 Project Structure
+
+```plaintext
+📂 trading-system/
+│── 📜 README.md             # Project documentation & setup instructions
+│── 📜 requirements.txt      # Python dependencies
+│── 📜 main_day_trader.py    # 🚀 Entry point for Alpaca paper trading (Alpaca API)
+
+├── 📂 data/                 # 📊 Historical market data and trade logs
+
+├── 📂 models/               # 🧠 Trained ML models and feature scalers  
+
+├── 📂 notebooks/            # 📓 Strategy research, backtesting and model training  
+
+├── 📂 src/                  # 🏗️ Core trading system  
+│   ├── 📂 alpaca_utils/     # 📡 Alpaca API modules
+│   ├── 📂 local_trading/    # 🔌 Simulated trading & backtesting (TCP-based)
+│   └── 📂 scripts/          # 🛠️ Utility scripts (data fetching, API checks)
+```
 
 ## Getting Started
 
 ### 1️⃣ Clone the Repository
+
 #### Using SSH (Recommended):
 ```bash
 git clone git@github.com:sohammandal/trading-system.git
+cd trading-system
+```
+
+#### Using HTTPS:
+```bash
+git clone https://github.com/sohammandal/trading-system.git
 cd trading-system
 ```
 
@@ -34,31 +61,31 @@ ALPACA_SECRET_KEY=your_secret_key
 Run the following command to confirm your API keys are working correctly:
 
 ```bash
-python scripts/alpaca/check_balance.py
+python src/scripts/check_balance.py
 ```
 
-## Running the TCP Client (No API Keys Required)
-The **TCP client** connects to the server to receive real-time market data and execute trades based on a predefined strategy. Unlike the Alpaca-based scripts, the TCP client does not require API keys because it uses historical market data streamed from a CSV file.
+## Running TCP-based Simulated Trading Locally (No API Keys Required)
+The **TCP-based system** mimics real-time trading by streaming historical data from CSV files. The TCP client connects to the TCP server to receive market data and execute trades based on a predefined strategy. Unlike the Alpaca-based system, the TCP-based system does not require API keys.
 
 ### 1️⃣ Start the Server (in a dedicated terminal)
 Before running the client, ensure the **TCP server** is running and streaming data. The server reads from the historical CSV file and sends price updates to connected clients in a simulated real-time manner.
 
 ```bash
-python scripts/tcp/tcp_server.py -p 9999 -f data/historical_stock_data_5min_6months.csv -t 0.1
+python src/local_trading/tcp_server.py -p 9999 -f data/historical_stock_data_5min_6months.csv -t 0.1
 ```
 
 ### 2️⃣ Run the TCP Client
 Once the server is running, start the client to receive market data and execute trades:
 
 ```bash
-python scripts/tcp/four_factor_day_trader.py
+python src/local_trading/four_factor_day_trader.py
 ```
 You should see market updates, trade signals, and portfolio status being printed in real time.
 
 ### 3️⃣ How it Works
-- The server mimics real-time trading by sending historical stock data from the CSV file at regular intervals.
-- The client processes the data and applies the chosen trading strategy.
-- All trades and profit/loss calculations are logged in the `data/` folder for review.
+- The TCP server streams data from a historical CSV file, simulating real-time price updates.
+- The trading client processes this data and applies a strategy.
+- All trades & performance logs are stored in the `data/` directory.
 
 ### 4️⃣ Stopping the Client
 To stop the client, use `Ctrl + C` in the terminal.
