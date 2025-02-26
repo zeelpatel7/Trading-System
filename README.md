@@ -34,7 +34,7 @@ ALPACA_SECRET_KEY=your_secret_key
 Run the following command to confirm your API keys are working correctly:
 
 ```bash
-python scripts/check_balance.py
+python scripts/alpaca/check_balance.py
 ```
 
 ## Running the TCP Client (No API Keys Required)
