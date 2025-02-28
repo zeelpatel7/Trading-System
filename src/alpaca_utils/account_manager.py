@@ -1,6 +1,9 @@
 import os
 from dotenv import load_dotenv
 from alpaca.trading.client import TradingClient
+from alpaca.trading.requests import GetOrdersRequest, GetPortfolioHistoryRequest
+from alpaca.trading.enums import QueryOrderStatus
+from alpaca.common.exceptions import APIError
 
 class AccountManager:
     """
@@ -22,44 +25,122 @@ class AccountManager:
         self.client = TradingClient(self.API_KEY, self.SECRET_KEY, paper=paper)
 
     def get_account_details(self):
-        """Fetch and return account details like balance, equity, and buying power."""
-        account = self.client.get_account()
-        return {
-            "equity": float(account.equity),
-            "cash": float(account.cash),
-            "buying_power": float(account.buying_power),
-            "profit_loss_today": float(account.equity) - float(account.last_equity)
-        }
+        """
+        Fetch and return account details like balance, equity, and buying power.
+        Includes account status, cash/margin breakdown, and realized PnL.
+        """
+        try:
+            account = self.client.get_account()
+            return {
+                "status": account.status,
+                "equity": float(account.equity),
+                "cash": float(account.cash),
+                "buying_power": float(account.buying_power),
+                "maintenance_margin": float(account.maintenance_margin),
+                "realized_pnl": float(account.equity) - float(account.last_equity),  # Realized PnL today
+                "margin_available": float(account.regt_buying_power),
+            }
+        except APIError as e:
+            print(f"❌ Error fetching account details: {e}")
+            return None
 
     def get_positions(self):
-        """Fetch all open positions and return them as a list of dictionaries."""
-        positions = self.client.get_all_positions()
-        position_data = []
-        
-        for pos in positions:
-            position_data.append({
-                "symbol": pos.symbol,
-                "qty": float(pos.qty),
-                "market_value": float(pos.market_value),
-                "cost_basis": float(pos.cost_basis),
-                "unrealized_pl": float(pos.unrealized_pl),
-                "unrealized_plpc": float(pos.unrealized_plpc) * 100,  # Convert to percentage
-            })
-
-        return position_data
-
-    def get_closed_positions(self):
-        """Alternative approach: Fetch closed positions from trade history."""
-        closed_positions = []
-        positions = self.client.get_all_positions()
-
-        for pos in positions:
-            if float(pos.qty) == 0:  # If quantity is zero, it's a closed position
-                closed_positions.append({
+        """
+        Fetch all open positions and return them as a list of dictionaries.
+        """
+        try:
+            positions = self.client.get_all_positions()
+            position_data = []
+            
+            for pos in positions:
+                position_data.append({
                     "symbol": pos.symbol,
+                    "qty": float(pos.qty),
                     "market_value": float(pos.market_value),
                     "cost_basis": float(pos.cost_basis),
-                    "realized_pl": float(pos.unrealized_pl)
+                    "unrealized_pl": float(pos.unrealized_pl),
+                    "unrealized_plpc": float(pos.unrealized_plpc) * 100,  # Convert to percentage
                 })
 
-        return closed_positions
+            return position_data
+
+        except APIError as e:
+            print(f"❌ Error fetching positions: {e}")
+            return []
+
+    def get_closed_positions(self):
+        """
+        Fetch closed positions from trade history by retrieving past completed orders.
+        """
+        try:
+            closed_positions = []
+            request = GetOrdersRequest(status=QueryOrderStatus.CLOSED)
+            orders = self.client.get_orders(request)
+
+            for order in orders:
+                if order.side == "sell" and order.filled_qty > 0:  # Only consider fully filled sell orders
+                    closed_positions.append({
+                        "symbol": order.symbol,
+                        "filled_qty": float(order.filled_qty),
+                        "avg_fill_price": float(order.filled_avg_price),
+                        "realized_pnl": float(order.filled_qty) * (float(order.filled_avg_price) - float(order.notional)),
+                    })
+
+            return closed_positions
+
+        except APIError as e:
+            print(f"❌ Error fetching closed positions: {e}")
+            return []
+
+    def get_account_history(self, period="5D", timeframe="1H"):
+        """
+        Fetch portfolio history for tracking PnL and performance.
+        :param period: Time period (e.g., '5D' for 5 days, '1M' for 1 month)
+        :param timeframe: Time interval (e.g., '1H' for hourly, '1D' for daily)
+        """
+        try:
+            request = GetPortfolioHistoryRequest(period=period, timeframe=timeframe)
+            history = self.client.get_portfolio_history(request)
+
+            return {
+                "equity": history.equity,  # List of equity values over time
+                "profit_loss": history.profit_loss,  # List of PnL over time
+                "timeframe": history.timeframe,  # Interval used (1H, 1D, etc.)
+            }
+        except APIError as e:
+            print(f"❌ Error fetching portfolio history: {e}")
+            return None
+
+    def get_open_orders(self):
+        """
+        Fetch all currently open orders.
+        """
+        try:
+            request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
+            open_orders = self.client.get_orders(request)
+            return open_orders
+
+        except APIError as e:
+            print(f"❌ Error fetching open orders: {e}")
+            return []
+
+    def check_market_open(self):
+        """
+        Check if the stock market is open before fetching real-time positions or placing trades.
+        """
+        try:
+            clock = self.client.get_clock()
+            return clock.is_open
+        except APIError as e:
+            print(f"❌ Error fetching market clock: {e}")
+            return None
+
+    def close_all_positions(self):
+        """
+        Close all open positions and cancel any existing open orders.
+        """
+        try:
+            self.client.close_all_positions(cancel_orders=True)
+            print("✅ All positions closed, and open orders canceled.")
+        except APIError as e:
+            print(f"❌ Error closing positions: {e}")
