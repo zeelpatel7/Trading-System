@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import GetOrdersRequest, GetPortfolioHistoryRequest
-from alpaca.trading.enums import QueryOrderStatus
+from alpaca.trading.enums import QueryOrderStatus, OrderSide, OrderStatus
 from alpaca.common.exceptions import APIError
 
 class AccountManager:
@@ -71,19 +71,62 @@ class AccountManager:
     def get_closed_positions(self):
         """
         Fetch closed positions from trade history by retrieving past completed orders.
+        Properly calculates cost basis by matching SELL orders to prior BUY orders.
         """
         try:
             closed_positions = []
             request = GetOrdersRequest(status=QueryOrderStatus.CLOSED)
             orders = self.client.get_orders(request)
 
+            # Step 1: Separate BUY and SELL orders
+            buy_orders = {}
+            sell_orders = []
+
             for order in orders:
-                if order.side == "sell" and order.filled_qty > 0:  # Only consider fully filled sell orders
+                if order.side == OrderSide.BUY and order.status == OrderStatus.FILLED:
+                    buy_orders.setdefault(order.symbol, []).append(order)  # Store buy orders by symbol
+                elif order.side == OrderSide.SELL and order.status == OrderStatus.FILLED:
+                    sell_orders.append(order)  # Store sell orders
+
+            # Step 2: Calculate Realized P/L by matching sells with previous buys
+            for sell_order in sell_orders:
+                symbol = sell_order.symbol
+                filled_qty = float(sell_order.filled_qty)
+                avg_sell_price = float(sell_order.filled_avg_price)
+
+                # 🔹 Market Value (Total revenue from selling)
+                market_value = filled_qty * avg_sell_price
+
+                # 🔹 Find matching BUY order(s) for cost basis
+                if symbol in buy_orders:
+                    total_cost = 0
+                    remaining_qty = filled_qty
+
+                    for buy_order in buy_orders[symbol]:
+                        if remaining_qty <= 0:
+                            break  # We matched all the sell quantity
+
+                        buy_qty = float(buy_order.filled_qty)
+                        avg_buy_price = float(buy_order.filled_avg_price)
+
+                        # Match available buy quantity to the sell quantity
+                        match_qty = min(remaining_qty, buy_qty)
+                        total_cost += match_qty * avg_buy_price
+                        remaining_qty -= match_qty  # Reduce remaining sell qty
+
+                    # 🔹 Cost Basis (Total cost of originally bought shares)
+                    cost_basis = total_cost
+
+                    # 🔹 Realized P/L (Profit or loss from selling)
+                    realized_pnl = round(market_value - cost_basis, 2)
+
                     closed_positions.append({
-                        "symbol": order.symbol,
-                        "filled_qty": float(order.filled_qty),
-                        "avg_fill_price": float(order.filled_avg_price),
-                        "realized_pnl": float(order.filled_qty) * (float(order.filled_avg_price) - float(order.notional)),
+                        "symbol": symbol,
+                        "filled_qty": filled_qty,
+                        "avg_fill_price": avg_sell_price,
+                        "market_value": round(market_value, 2),
+                        "cost_basis": round(cost_basis, 2),
+                        "realized_pnl": realized_pnl,
                     })
 
             return closed_positions
@@ -91,6 +134,8 @@ class AccountManager:
         except APIError as e:
             print(f"❌ Error fetching closed positions: {e}")
             return []
+
+
 
     def get_account_history(self, period="5D", timeframe="1H"):
         """

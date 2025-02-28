@@ -27,20 +27,20 @@ class TradeManager:
         self.client = TradingClient(self.api_key, self.secret_key, paper=paper)
 
     def validate_trade(self, symbol, qty, side):
-        """Ensure sufficient buying power before buying, and enough shares before selling."""
+        """Ensure sufficient buying power for BUY and allow SELL to open short if we don't hold shares."""
         account = self.client.get_account()
         buying_power = float(account.buying_power)
 
         if side.lower() == "buy":
+            # Check if we have enough buying power to go long
             if buying_power <= 0:
-                print(f"❌ Insufficient buying power to purchase {qty} shares of {symbol}.")
+                print(f"❌ Insufficient buying power to BUY {qty} shares of {symbol}.")
                 return False
-        else:  # Sell case
-            positions = self.client.get_all_positions()
-            position_dict = {pos.symbol: float(pos.qty) for pos in positions}
-
-            if symbol not in position_dict or position_dict[symbol] < qty:
-                print(f"❌ Not enough {symbol} shares to sell. Available: {position_dict.get(symbol, 0)}")
+        else:  # SELL case => either closing a position or opening a short
+            # For a short sale, we only need to confirm we have enough margin (buying_power).
+            # If user is actually SELLing existing shares, that should also be fine.
+            if buying_power <= 0:
+                print(f"❌ Insufficient buying power to SHORT {qty} shares of {symbol}.")
                 return False
 
         return True
@@ -66,7 +66,11 @@ class TradeManager:
             if stop_loss_price:
                 min_sl_distance = stop_loss_price * 0.003  # 0.3% minimum distance
                 stop_price = max(stop_loss_price, stop_loss_price - min_sl_distance if side.lower() == "buy" else stop_loss_price + min_sl_distance)
+                stop_price = round(stop_price, 2)
                 stop_limit_offset = stop_price * 0.001  # 0.1% offset
+                stop_limit_price = round(stop_price - stop_limit_offset if side.lower() == "buy" else stop_price + stop_limit_offset, 2)
+            
+            take_profit_price = round(take_profit_price, 2) if take_profit_price else None
 
             order = MarketOrderRequest(
                 symbol=symbol,
@@ -77,7 +81,7 @@ class TradeManager:
                 take_profit=TakeProfitRequest(limit_price=take_profit_price) if take_profit_price else None,
                 stop_loss=StopLossRequest(
                     stop_price=stop_price,
-                    limit_price=stop_price - stop_limit_offset if side.lower() == "buy" else stop_price + stop_limit_offset
+                    limit_price=stop_limit_price
                 ) if stop_loss_price else None
             )
 
@@ -112,8 +116,8 @@ class TradeManager:
                 time_in_force=TimeInForce.GTC,
                 order_class=OrderClass.BRACKET,
                 limit_price=limit_price,
-                stop_loss=StopLossRequest(stop_price=stop_loss_price),
-                take_profit=TakeProfitRequest(limit_price=take_profit_price),
+                stop_loss=StopLossRequest(stop_price=round(stop_loss_price,2)),
+                take_profit=TakeProfitRequest(limit_price=round(take_profit_price, 2)),
             )
 
             response = self.client.submit_order(order)
