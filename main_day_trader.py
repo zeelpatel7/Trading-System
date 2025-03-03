@@ -127,3 +127,6 @@ else:
 #                 print(f"Order Response for {symbol}:", order_response)
 #             else:
 #                 print("❌ Market is closed. Cannot place orders.")
+
+# Close all positions
+# account_manager.close_all_positions()
