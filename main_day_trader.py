@@ -33,7 +33,7 @@ def fetch_account_details():
     print(f"📈 Equity: ${account_info['equity']}")
     print(f"💰 Account Balance: ${account_info['cash']}")
     print(f"💵 Buying Power: ${account_info['buying_power']}")
-    print(f"🔄 Profit/Loss Today: ${account_info['realized_pnl']}")
+    print(f"🔄 Profit/Loss Today: ${round(account_info['realized_pnl'], 2)}")
     print(f"🛠️ Maintenance Margin: ${account_info['maintenance_margin']}")
     print(f"📊 Margin Available: ${account_info['margin_available']}")
 
@@ -48,18 +48,6 @@ def fetch_account_details():
                 f"Unrealized P/L: ${pos['unrealized_pl']} ({pos['unrealized_plpc']:.2f}%)")
     else:
         print("\n❌ No open positions.")
-
-    # -------------------
-    # Fetch closed positions
-    # -------------------
-    closed_positions = account_manager.get_closed_positions()
-    if closed_positions:
-        print("\n📉 Closed Positions:")
-        for pos in closed_positions:
-            print(f" - {pos['symbol']}: Market Value: ${pos['market_value']}, "
-                f"Cost Basis: ${pos['cost_basis']}, Realized P/L: ${pos['realized_pnl']}")
-    else:
-        print("\n🛑 No closed positions yet.")
 
 
 def run_day_trader():
@@ -183,4 +171,4 @@ def run_day_trader():
 
 if __name__ == '__main__':
     fetch_account_details()
-    # run_day_trader()
+    run_day_trader()
