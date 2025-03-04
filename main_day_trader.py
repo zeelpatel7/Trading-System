@@ -71,14 +71,14 @@ def run_day_trader():
         if not is_open:
             # Calculate sleep time until the market opens
             sleep_time = (next_open - current_time).total_seconds()
-            print(f"⏳ Market closed. Waiting {int(sleep_time / 60)} minutes until next open at {next_open}.")
+            print(f"\n⏳ Market closed. Waiting {int(sleep_time / 60)} minutes until next open at {next_open}.")
             time.sleep(sleep_time)  # Sleep precisely until market opens
             continue  # Restart loop after waking up
 
         # Stop trading if market close time is less than 4 minutes away
         time_until_close = (next_close - current_time).total_seconds()
         if int(time_until_close / 60) <= 4:
-            print("🏁 Market about to close. Closing all positions.")
+            print("\n🏁 Market about to close. Closing all positions.")
             account_manager.close_all_positions()
             print("✅ All positions closed. Waiting for next market open.")
 
