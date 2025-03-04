@@ -169,13 +169,13 @@ class AccountManager:
             print(f"❌ Error fetching open orders: {e}")
             return []
 
-    def check_market_open(self):
+    def get_market_clock_data(self):
         """
         Check if the stock market is open before fetching real-time positions or placing trades.
         """
         try:
             clock = self.client.get_clock()
-            return clock.is_open
+            return clock.timestamp, clock.is_open, clock.next_open, clock.next_close
         except APIError as e:
             print(f"❌ Error fetching market clock: {e}")
             return None
