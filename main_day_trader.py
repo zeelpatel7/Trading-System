@@ -88,6 +88,8 @@ def run_day_trader():
             time.sleep(sleep_time)
             continue  # Restart loop after waking up
 
+        print(f'\n🚀 Running Day Trader at {current_time.strftime("%Y-%m-%d %H:%M:%S")}...')
+        
         historical_data = market_data_manager.fetch_historical_data()
 
         if historical_data is None or historical_data.empty:
@@ -181,4 +183,4 @@ def run_day_trader():
 
 if __name__ == '__main__':
     fetch_account_details()
-    run_day_trader()
+    # run_day_trader()
