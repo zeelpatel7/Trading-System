@@ -28,11 +28,12 @@ jobs:
           cd ~/trading-system  # Change to your repo directory
           git pull git@github.com:sohammandal/trading-system.git main  # Pull latest changes
           
-          # Remove all stopped containers
-          docker container prune -f
-          
-          # Remove all unused images
-          docker image prune -af
+          # Clean up disk space
+          docker container prune -f  # Remove all stopped containers
+          docker image prune -af  # Remove unused images
+          docker builder prune -af  # Remove build cache
+          docker volume prune -f  # Remove unused volumes
+          docker system prune -af --volumes  # Deep cleanup
 
           # Stop and remove the old running container (if exists)
           docker stop trading-bot || true
