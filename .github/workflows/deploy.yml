@@ -33,8 +33,6 @@ jobs:
           # 1) Docker Cleanup
           docker container prune -f   # Remove stopped containers
           docker image prune -af      # Remove unused images
-          docker volume prune -f      # Remove unused volumes
-          docker network prune -f     # Remove unused networks
 
           # 2) OS-Level Cleanup
           journalctl --vacuum-size=100M
