@@ -26,7 +26,7 @@ jobs:
         # SSH into EC2 and deploy the latest code
         ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST << 'EOF'
           cd ~/trading-system  # Change to your repo directory
-          git pull origin main  # Pull latest changes
+          git pull git@github.com:sohammandal/trading-system.git main  # Pull latest changes
           
           # Rebuild and restart the Docker container
           docker stop trading-bot || true
