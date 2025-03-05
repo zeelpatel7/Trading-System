@@ -28,19 +28,27 @@ jobs:
           cd ~/trading-system  # Change to your repo directory
           git pull git@github.com:sohammandal/trading-system.git main  # Pull latest changes
           
-          # Clean up disk space
-          docker container prune -f  # Remove all stopped containers
-          docker image prune -af  # Remove unused images
-          docker builder prune -af  # Remove build cache
-          docker volume prune -f  # Remove unused volumes
-          docker system prune -af --volumes  # Deep cleanup
+          # Remove unused Docker images, containers, and build cache
+          docker container prune -f
+          docker image prune -af
+          docker builder prune -af
+          docker volume prune -f
+          docker system prune -af --volumes
+
+          # Remove old logs and unused dependencies
+          journalctl --vacuum-size=100M
+          sudo apt autoremove -y && sudo apt clean
+          rm -rf ~/.cache/pip  # Remove old pip cache
 
           # Stop and remove the old running container (if exists)
           docker stop trading-bot || true
           docker rm trading-bot || true
 
+          # Ensure enough space before building
+          df -h
+
           # Rebuild and start the new container
-          docker build -t trading-bot .
+          docker build --no-cache -t trading-bot .   # No-cache to avoid stale layers
           docker run -d --env-file .env --name trading-bot trading-bot
         EOF
 
