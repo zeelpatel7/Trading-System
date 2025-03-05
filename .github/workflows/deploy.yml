@@ -28,9 +28,16 @@ jobs:
           cd ~/trading-system  # Change to your repo directory
           git pull git@github.com:sohammandal/trading-system.git main  # Pull latest changes
           
-          # Rebuild and restart the Docker container
+          # Remove all old Docker images except the latest one
+          LATEST_IMAGE_ID=\$(docker images trading-bot --format "{{.ID}}" | head -n 1)
+          docker images trading-bot --format "{{.ID}}" | tail -n +2 | xargs -r docker rmi -f
+          docker image prune -f  # Remove dangling <none> images
+          
+          # Stop and remove the old container (if exists)
           docker stop trading-bot || true
           docker rm trading-bot || true
+          
+          # Build and restart the container with the new image
           docker build -t trading-bot .
           docker run -d --env-file .env --name trading-bot trading-bot
         EOF
