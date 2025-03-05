@@ -19,38 +19,34 @@ jobs:
         EC2_HOST: ${{ secrets.EC2_HOST }}
         EC2_USER: ${{ secrets.EC2_USER }}
       run: |
-        # Save the private key on the GitHub runner
+        # Save the SSH key for GitHub Actions
         echo "$SSH_PRIVATE_KEY" > private_key.pem
         chmod 600 private_key.pem
 
-        # SSH into EC2 and deploy the latest code
+        # SSH into EC2 and handle deployment
         ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST << 'EOF'
-          cd ~/trading-system  # Change to your repo directory
-          git pull git@github.com:sohammandal/trading-system.git main  # Pull latest changes
+          cd ~/trading-system
           
-          # Remove unused Docker images, containers, and build cache
-          docker container prune -f
-          docker image prune -af
-          docker builder prune -af
-          docker volume prune -f
+          # Pull the latest code from GitHub
+          git pull git@github.com:sohammandal/trading-system.git main
+          
+          # 1) Docker Cleanup
           docker system prune -af --volumes
+          docker builder prune -af
 
-          # Remove old logs and unused dependencies
+          # 2) OS-Level Cleanup
           journalctl --vacuum-size=100M
           sudo apt autoremove -y && sudo apt clean
-          rm -rf ~/.cache/pip  # Remove old pip cache
-
-          # Stop and remove the old running container (if exists)
+          rm -rf ~/.cache/pip
+          
+          # 3) Stop Old Container
           docker stop trading-bot || true
           docker rm trading-bot || true
-
-          # Ensure enough space before building
-          df -h
-
-          # Rebuild and start the new container
-          docker build --no-cache -t trading-bot .   # No-cache to avoid stale layers
+          
+          # 4) Build & Run Fresh Container
+          docker build --no-cache -t trading-bot .
           docker run -d --env-file .env --name trading-bot trading-bot
         EOF
-
-        # Cleanup private key
+        
+        # Remove SSH key locally
         rm -f private_key.pem
