@@ -21,7 +21,7 @@ risk_manager = RiskManager(
     atr_multiplier=1, 
     risk_reward_ratio=2, 
     max_position_fraction=0.01, 
-    max_open_positions=20, 
+    max_open_positions=15, 
     max_notional_ratio=0.50
 )
 
@@ -51,10 +51,29 @@ def fetch_account_details():
 
 
 def run_day_trader():
+    """
+    Runs the main trading loop for the day-trading bot.
+
+    - Continuously checks market open/close status.
+    - Iterates through the securities and fetches historical data.
+    - Updates the strategy buffer and generates trade signals.
+    - Applies risk management constraints before placing trades.
+    - Places market orders with stop-loss and take-profit parameters.
+    - Sleeps between iterations to align with 5-minute trading cycles.
+    
+    The loop runs until the market closes, at which point all positions are closed.
+    """
 
     while True:
         
+        # -------------------
+        # Check Market Status
+        # -------------------
+        # - If the market is closed, the script sleeps until the next open.
+        # - If it's close to the end of the trading session, all positions are closed to avoid overnight risk.
+
         current_time, is_open, next_open, next_close = account_manager.get_market_clock_data()
+        time_until_close = (next_close - current_time).total_seconds()
 
         if not is_open:
             # Calculate sleep time until the market opens
@@ -64,7 +83,6 @@ def run_day_trader():
             continue  # Restart loop after waking up
 
         # Stop trading if market close time is less than 4 minutes away
-        time_until_close = (next_close - current_time).total_seconds()
         if int(time_until_close / 60) <= 4:
             print("\n🏁 Market about to close. Closing all positions.")
             account_manager.close_all_positions()
@@ -76,22 +94,15 @@ def run_day_trader():
             time.sleep(sleep_time)
             continue  # Restart loop after waking up
 
-        print(f'\n🚀 Running Day Trader at {current_time.strftime("%Y-%m-%d %H:%M:%S")}...')
-        
-        historical_data = market_data_manager.fetch_historical_data()
-
-        if historical_data is None or historical_data.empty:
-            print("❌ No historical data available. Exiting test.")
-            time.sleep(300)
-            continue
-
         # -------------------
         # Loop through all securities
         # -------------------
-        for symbol in market_data_manager.stock_tickers + market_data_manager.etfs:
-            symbol_data = historical_data[historical_data["symbol"] == symbol]
+        print(f'\n🚀 Running Day Trader at {current_time.strftime("%Y-%m-%d %H:%M:%S")}...')
 
-            if symbol_data.empty:
+        for symbol in market_data_manager.stock_tickers + market_data_manager.etfs:
+            symbol_data = market_data_manager.fetch_historical_data(symbol=symbol)
+
+            if symbol_data is None or symbol_data.empty:
                 print(f"⚠️ No data found for {symbol}, skipping...")
                 continue
 
@@ -101,7 +112,7 @@ def run_day_trader():
 
             # Generate trade signal
             trade_signal = trading_strategy.generate_trade_signal(symbol)
-            print(f"\n📈 Trade Signal for {symbol}: {trade_signal}")
+            print(f"📈 Trade Signal for {symbol}: {trade_signal}")
 
             if trade_signal in ["BUY", "SELL"]:
                 # Re-fetch latest account details
@@ -134,7 +145,7 @@ def run_day_trader():
                 print(f"Trade Signal: {trade_signal}, Entry Price: {entry_price}, "
                     f"Quantity: {risk_params['quantity']}, Total Value: {entry_price * risk_params['quantity']}")
 
-                # 3) If all checks pass, place the order
+                # If all checks pass, place the order
                 print(f"Placing {trade_signal} order for {symbol}...")
                 try:
                     order_response = trade_manager.place_market_order(

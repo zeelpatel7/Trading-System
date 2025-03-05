@@ -9,7 +9,7 @@ class RiskManager:
         atr_multiplier=1,
         risk_reward_ratio=2,
         max_position_fraction=0.01,  # e.g., 1% of buying power per trade
-        max_open_positions=10,       # Max concurrent positions
+        max_open_positions=15,       # Max concurrent positions
         max_notional_ratio=0.50      # Max 50% of buying power in positions
     ):
         """

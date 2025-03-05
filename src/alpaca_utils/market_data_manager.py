@@ -27,14 +27,16 @@ class MarketDataManager:
         self.client = StockHistoricalDataClient(self.api_key, self.secret_key)
 
         self.stock_tickers = [
-            "AAPL", "MSFT", "AMZN", "GOOGL", "META", "BRK.B", "NVDA", "JPM", "TSLA", "JNJ",
-            "V", "PG", "UNH", "HD", "MA", "BAC", "DIS", "PYPL", "CRM", "PFE",
-            "VZ", "INTC", "CMCSA", "NFLX", "XOM", "KO", "ABT", "T", "NKE", "MRK",
-            "WMT", "ADP", "CVX", "TMO", "ORCL", "IBM", "ACN", "MCD", "MDLZ", "UPS",
-            "COST", "HON", "DHR", "QCOM", "MDT", "TXN", "AVGO", "SPGI", "ADBE", "LLY"
+            "AAPL", "MSFT", "AMZN", "GOOGL", "META", "NVDA",  # Tech giants (liquid + volatile)
+            "TSLA", "JPM", "BAC", "MA", "V",                   # High-beta names (TSLA, banks, credit cards)
+            "UNH", "HD", "DIS", "NFLX", "COST"                 # Diversification (healthcare, retail, media)
         ]
 
-        self.etfs = ["SPY", "DIA", "QQQ", "IWM", "VTI", "IYT", "IDU", "VXX"]
+        self.etfs = [
+            "SPY", "QQQ", "IWM",      # Core market ETFs (S&P 500, Nasdaq, Russell 2000)
+            "VXX",                     # Volatility hedge (critical for risk-off moves)
+            "IYT", "XLE", "XLK", "XLB" # Sector ETFs (transportation, energy, tech, materials)
+        ]
 
         self.timeframe = timeframe
         self.days = days
