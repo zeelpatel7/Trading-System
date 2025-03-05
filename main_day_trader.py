@@ -59,7 +59,7 @@ def run_day_trader():
         if not is_open:
             # Calculate sleep time until the market opens
             sleep_time = (next_open - current_time).total_seconds()
-            print(f"\n⏳ Market closed. Waiting {int(sleep_time / 60)} minutes until next open at {next_open}.")
+            print(f"\n⏳ Market closed at {current_time.strftime("%Y-%m-%d %H:%M:%S")}. Waiting {int(sleep_time / 60)} minutes until next open at {next_open}.")
             time.sleep(sleep_time)  # Sleep precisely until market opens
             continue  # Restart loop after waking up
 

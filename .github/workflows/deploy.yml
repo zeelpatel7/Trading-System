@@ -1,0 +1,39 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main  # Change if using another branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up SSH and Deploy
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        EC2_HOST: ${{ secrets.EC2_HOST }}
+        EC2_USER: ${{ secrets.EC2_USER }}
+      run: |
+        # Save the private key on the GitHub runner
+        echo "$SSH_PRIVATE_KEY" > private_key.pem
+        chmod 600 private_key.pem
+
+        # SSH into EC2 and deploy the latest code
+        ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST << 'EOF'
+          cd ~/trading-system  # Change to your repo directory
+          git pull origin main  # Pull latest changes
+          
+          # Rebuild and restart the Docker container
+          docker stop trading-bot || true
+          docker rm trading-bot || true
+          docker build -t trading-bot .
+          docker run -d --env-file .env --name trading-bot trading-bot
+        EOF
+
+        # Cleanup private key
+        rm -f private_key.pem
