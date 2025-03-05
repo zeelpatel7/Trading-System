@@ -30,7 +30,7 @@ jobs:
           # Pull the latest code from GitHub
           git pull git@github.com:sohammandal/trading-system.git main
           
-          # 1) Docker Cleanup - Only Remove Unused Stuff
+          # 1) Docker Cleanup
           docker container prune -f   # Remove stopped containers
           docker image prune -af      # Remove unused images
           docker volume prune -f      # Remove unused volumes
