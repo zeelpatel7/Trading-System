@@ -1,64 +1,156 @@
 # Trading System
 
-This is an automated trading system that interacts with Alpaca's API for paper trading. The system retrieves market data and executes trades based on predefined strategies.
+This is an **automated trading system** designed for live trading and strategy testing using the **[Alpaca](https://alpaca.markets/) API**. It retrieves real-time market data, calculates indicators, generates trade signals and executes orders based on predefined strategies.
 
-## Getting Started
+It supports:
+
+- **Live trading** using Alpaca's API on AWS EC2, allowing continuous execution in a cloud environment.
+- **Local execution** using Docker for development and strategy testing.
+- **Automated deployments** to EC2 via a GitHub Actions CD pipeline, ensuring seamless updates when changes are pushed.
+
+⚠️ _Note: A legacy TCP-based simulated trading approach is included in this repo but is no longer the primary method._
+
+## 📂 Project Structure
+
+```plaintext
+📂 trading-system/
+│── 📜 README.md             # Project documentation & setup instructions
+│── 📜 requirements.txt      # Python dependencies
+│── 📜 Dockerfile            # 🐳 Docker setup for containerized deployment
+│── 📜 main_day_trader.py    # 🚀 Entry point for Alpaca paper trading (Alpaca API)
+
+├── 📂 data/                 # 📊 Historical market data and trade logs
+
+├── 📂 models/               # 🧠 Trained ML models and feature scalers  
+
+├── 📂 notebooks/            # 📓 Strategy research, backtesting and model training  
+
+├── 📂 src/                  # 🏗️ Core trading system  
+│   ├── 📂 alpaca_utils/     # 📡 Alpaca API modules
+│   ├── 📂 local_trading/    # 🔌 Simulated trading & backtesting (TCP-based)
+│   └── 📂 scripts/          # 🛠️ Utility scripts (data fetching, API checks)
+
+├── 📂 .github/workflows/    # 🔄 CI/CD pipeline  
+│   └── 📜 deploy.yml        # 🚀 GitHub Actions workflow for EC2 auto-deploy
+```
+
+## 🚀 Getting Started
 
 ### 1️⃣ Clone the Repository
+
 #### Using SSH (Recommended):
 ```bash
 git clone git@github.com:sohammandal/trading-system.git
 cd trading-system
 ```
 
-### 2️⃣ Create a Virtual Environment
+### 2️⃣ Create a Virtual Environment & Install Dependencies
 ```bash
 python -m venv venv
 source venv/bin/activate  # Mac/Linux
 venv\Scripts\activate     # Windows
-```
-
-### 3️⃣ Install Dependencies
-```bash
 pip install -r requirements.txt
 ```
 
-### 4️⃣ Configure API Keys
-Create a `.env` file in the project root and ensure it is included in `.gitignore`:
+### 3️⃣ Configure API Keys
+Obtain [API Keys](https://alpaca.markets/learn/connect-to-alpaca-api) from Alpaca, create a `.env` file as seen below in the project root and ensure it is included in `.gitignore`:
 ```bash
 ALPACA_API_KEY=your_api_key
 ALPACA_SECRET_KEY=your_secret_key
 ```
 
-### 5️⃣ Verify Setup by Checking Account Balance
+### 4️⃣ Verify Setup by Checking Account Balance
 Run the following command to confirm your API keys are working correctly:
 
 ```bash
-python scripts/check_balance.py
+python src/scripts/check_balance.py # Checks API Connectivity
 ```
 
-## Running the TCP Client (No API Keys Required)
-The **TCP client** connects to the server to receive real-time market data and execute trades based on a predefined strategy. Unlike the Alpaca-based scripts, the TCP client does not require API keys because it uses historical market data streamed from a CSV file.
+## 🛠 Running the Trading Bot with Docker
 
-### 1️⃣ Start the Server (in a dedicated terminal)
-Before running the client, ensure the **TCP server** is running and streaming data. The server reads from the historical CSV file and sends price updates to connected clients in a simulated real-time manner.
+Easily run the trading bot locally using **Alpaca's API** in a containerized environment:  
 
+### 1️⃣ Build the Docker Image
 ```bash
-python scripts/tcp/tcp_server.py -p 9999 -f data/historical_stock_data_5min_6months.csv -t 0.1
+docker build -t trading-bot .
 ```
 
-### 2️⃣ Run the TCP Client
-Once the server is running, start the client to receive market data and execute trades:
-
+### 2️⃣ Run the Trading Bot
 ```bash
-python scripts/tcp/four_factor_day_trader.py
+docker run -d --restart unless-stopped --env-file .env --name trading-bot trading-bot
 ```
-You should see market updates, trade signals, and portfolio status being printed in real time.
 
-### 3️⃣ How it Works
-- The server mimics real-time trading by sending historical stock data from the CSV file at regular intervals.
-- The client processes the data and applies the chosen trading strategy.
-- All trades and profit/loss calculations are logged in the `data/` folder for review.
+This will start the bot in a **detached mode**, automatically restarting if it stops.  
 
-### 4️⃣ Stopping the Client
-To stop the client, use `Ctrl + C` in the terminal.
+### 3️⃣ Check Logs
+```bash
+docker logs -f trading-bot
+```
+
+### 4️⃣ Stop & Remove the Container
+```bash
+docker stop trading-bot && docker rm trading-bot
+```
+
+👉 Make sure your `.env` file contains valid API credentials before running the container.
+
+## 🌍 Deploying to AWS EC2 
+
+The trading bot can run **continuously on AWS EC2**, leveraging **GitHub Actions** for **automated deployments** whenever updates are pushed to the repository. This ensures that the bot is always running the latest version without manual intervention. 
+
+### 1️⃣ Set Up an AWS EC2 Instance
+- Launch a **t2.micro (free-tier)** EC2 instance running **Ubuntu**.  
+- Install **Docker & Git** on the instance.
+- Configure security groups to allow **SSH (port 22)**. 
+- Generate an **SSH key pair** in the instance for GitHub authentication.
+- Clone the repository and configure environment variables (create a `.env` file in the project root).
+
+### 2️⃣ Set Up GitHub Actions for Automated Deployment
+- Add the **EC2 SSH private key** as a **GitHub Secret** (`EC2_SSH_PRIVATE_KEY`).  
+- Store **EC2 public IP, username (`ubuntu`), and other details** as repo secrets (`EC2_HOST`, `EC2_USER`).  
+- Configure the **GitHub Actions workflow** (`.github/workflows/deploy.yml`) to:
+  - SSH into EC2.  
+  - Pull the latest code from GitHub.  
+  - Rebuild and restart the Docker container running the bot.
+
+Once set up, any push to the `main` branch will automatically deploy the latest version to EC2.
+
+### 3️⃣ Monitor & Manage the Bot
+- **Check live logs:**
+  ```bash
+  docker logs -f trading-bot
+  ```
+- **Restart the bot if needed:**
+  ```bash
+  docker restart trading-bot
+  ```
+- **Manually update & restart:**
+  ```bash
+  git pull origin main
+  docker stop trading-bot && docker rm trading-bot
+  docker build -t trading-bot .
+  docker run -d --restart unless-stopped --env-file .env --name trading-bot trading-bot
+  ```
+
+This setup ensures a **reliable, automated, and cloud-based live trading environment** with minimal maintenance.
+
+## ⚡ **Legacy: Simulated Trading (TCP-based, No API Keys Required)**  
+
+This **older testing method** streams historical data from CSV files to simulate real-time trading.  
+
+### **1️⃣ Start the TCP Server**  
+Streams market data to connected clients:  
+```bash
+python src/local_trading/tcp_server.py -p 9999 -f data/historical_stock_data_5min_6months.csv -t 0.1
+```
+
+### **2️⃣ Run the Trading Client**  
+Executes trades based on the simulated market data:  
+```bash
+python src/local_trading/four_factor_day_trader.py
+```
+
+### **3️⃣ Stop the Client**  
+Use `Ctrl + C` to stop execution.  
+
+All trade logs are saved in the `data/` directory. 🚀
